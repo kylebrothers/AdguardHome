@@ -1,5 +1,7 @@
 version: "3"
 
+# Source is here: https://github.com/Haxxnet/Compose-Examples/blob/main/examples/adguard-home/docker-compose.yml
+
 services:
   adguard:
     container_name: adguard
