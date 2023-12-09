@@ -1,6 +1,7 @@
 version: "3"
 
 # Source is here: https://github.com/Haxxnet/Compose-Examples/blob/main/examples/adguard-home/docker-compose.yml
+# In order to make this work on Pi I had to use: directions here: https://github.com/AdguardTeam/AdGuardHome/issues/4283
 
 services:
   adguard:
