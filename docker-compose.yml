@@ -1,39 +1,30 @@
 version: "3"
 
-# Source is here: https://github.com/Haxxnet/Compose-Examples/blob/main/examples/adguard-home/docker-compose.yml
-# In order to make this work on Pi I had to use: directions here: https://github.com/AdguardTeam/AdGuardHome/issues/4283
-
 services:
-  adguard:
-    container_name: adguard
-    hostname: adguard
-    image: adguard/adguardhome:latest
-    ports:
-      - 3000:3000/tcp # only required during initial setup
-      - 9099:80/tcp # web interface after setup
-      - 53:53/tcp # dns
-      - 53:53/udp # dns
-      # - 67:67/udp # dhcp
-      # - 68:68/tcp # dhcp
-      # - 68:68/udp # dhcp
-      # - 784:784/udp # dns-over-quic
-      # - 853:853/tcp # dns over tls
-      # - 853:853/udp # dns over tls
-      # - 5443:5443/tcp # dnscrypt
-      # - 5443:5443/udp # dnscrypt
+  wg-easy:
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    container_name: wg-easy
+    environment:
+      - WG_HOST=www.brothersbrothers.net
+      - PASSWORD=${UIPassword}
+      - WG_DEFAULT_DNS=192.168.0.120  # Your host IP running DNS
+    hostname: wireguard-easy
+    image: docker.io/weejewel/wg-easy:latest
     restart: unless-stopped
+    ports:
+      - "51820:51820/udp"  # WireGuard VPN port
+      - "51821:51821/tcp"  # Web UI port
     volumes:
-      - adguardhome_work:/opt/adguardhome/work  # persist work folder
-      - adguardhome_conf:/opt/adguardhome/conf  # persist conf folder
+      - wg-easy_data:/etc/wireguard
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
 
 volumes:
-  adguardhome_work:
+  wg-easy_data:
     driver_opts:
       type: nfs
-      device: ":/Docker/AdguardHome/work"
-      o: nfsvers=4,addr=192.168.0.134,nolock,soft,rw
-  adguardhome_conf:
-    driver_opts:
-      type: nfs
-      device: ":/Docker/AdguardHome/conf"
+      device: ":/Docker/wg-easy/data"
       o: nfsvers=4,addr=192.168.0.134,nolock,soft,rw
