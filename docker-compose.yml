@@ -1,38 +1,66 @@
-version: "3"
-
-# Source is here: https://github.com/Haxxnet/Compose-Examples/blob/main/examples/adguard-home/docker-compose.yml
-
+version: "3.9"
 services:
+  adguard-init:
+    image: instrumentisto/rsync-ssh:latest
+    container_name: adguard-init
+    restart: "no"
+    volumes:
+      - adguardhome_work:/data/work
+      - adguardhome_conf:/data/conf
+      - nfs_work:/backup/work
+      - nfs_conf:/backup/conf
+    entrypoint: >
+      sh -c "
+        if [ -z \"$(ls -A /data/work)\" ]; then rsync -a /backup/work/ /data/work/; fi;
+        if [ -z \"$(ls -A /data/conf)\" ]; then rsync -a /backup/conf/ /data/conf/; fi
+      "
+
   adguard:
     container_name: adguard
     hostname: adguard
     image: adguard/adguardhome:latest
     ports:
-      - 3000:3000/tcp # only required during initial setup
-      - 9099:80/tcp # web interface after setup
-      - 53:53/tcp # dns
-      - 53:53/udp # dns
-      # - 67:67/udp # dhcp
-      # - 68:68/tcp # dhcp
-      # - 68:68/udp # dhcp
-      # - 784:784/udp # dns-over-quic
-      # - 853:853/tcp # dns over tls
-      # - 853:853/udp # dns over tls
-      # - 5443:5443/tcp # dnscrypt
-      # - 5443:5443/udp # dnscrypt
+      - 3000:3000/tcp
+      - 9099:80/tcp
+      - 53:53/tcp
+      - 53:53/udp
     restart: unless-stopped
+    depends_on:
+      adguard-init:
+        condition: service_completed_successfully
     volumes:
-      - adguardhome_work:/opt/adguardhome/work  # persist work folder
-      - adguardhome_conf:/opt/adguardhome/conf  # persist conf folder
+      - adguardhome_work:/opt/adguardhome/work
+      - adguardhome_conf:/opt/adguardhome/conf
+
+  adguard-backup:
+    image: instrumentisto/rsync-ssh:latest
+    container_name: adguard-backup
+    restart: unless-stopped
+    depends_on:
+      adguard-init:
+        condition: service_completed_successfully
+    volumes:
+      - adguardhome_work:/data/work:ro
+      - adguardhome_conf:/data/conf:ro
+      - nfs_work:/backup/work
+      - nfs_conf:/backup/conf
+    entrypoint: >
+      sh -c "while true; do
+        rsync -a --delete /data/work/ /backup/work/;
+        rsync -a --delete /data/conf/ /backup/conf/;
+        sleep 900;
+      done"
 
 volumes:
   adguardhome_work:
+  adguardhome_conf:
+  nfs_work:
     driver_opts:
       type: nfs
       device: ":/Docker/AdguardHome/work"
-      o: nfsvers=4,addr=192.168.0.134,nolock,soft,rw
-  adguardhome_conf:
+      o: nfsvers=4,addr=192.168.0.134,nolock,rw
+  nfs_conf:
     driver_opts:
       type: nfs
       device: ":/Docker/AdguardHome/conf"
-      o: nfsvers=4,addr=192.168.0.134,nolock,soft,rw
+      o: nfsvers=4,addr=192.168.0.134,nolock,rw
